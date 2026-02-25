@@ -4,48 +4,48 @@ echo ========================================
 echo Data Science Project Environment Setup
 echo ========================================
 
-REM Find conda automatically
-set CONDA_EXE=
-for /f "delims=" %%i in ('where conda 2^>nul') do set CONDA_EXE=%%i
-
-if "%CONDA_EXE%"=="" (
-    echo [ERROR] conda not found in PATH
-    echo Install Anaconda: https://www.anaconda.com/download
-    echo Add to PATH: %%USERPROFILE%%\anaconda3\condabin
+REM Check files first
+if not exist "..\broken_env.py" (
+    echo [ERROR] broken_env.py not found!
+    pause
+    exit /b 1
+)
+if not exist "..\requirements.txt" (
+    echo [ERROR] requirements.txt not found!
     pause
     exit /b 1
 )
 
-echo [OK] Found conda: %CONDA_EXE%
+echo [OK] Files found OK
 
-set ENV_NAME=ds_project
-set PYTHON_VER=3.11
-
-REM Check if environment exists
-echo [INFO] Checking %ENV_NAME%...
-%CONDA_EXE% env list | findstr /C:"%ENV_NAME% " >nul 2^>nul
-if !errorlevel! equ 0 (
-    echo [OK] %ENV_NAME% exists
-) else (
-    echo [INFO] Creating %ENV_NAME%...
-    %CONDA_EXE% create -n %ENV_NAME% python=%PYTHON_VER% -y
-    if errorlevel 1 (
-        echo [ERROR] Failed to create environment
-        pause
-        exit /b 1
+REM Try to find conda
+where conda >nul 2>nul
+if %errorlevel%==0 (
+    echo [OK] conda found in PATH
+    call conda env list | findstr ds_project >nul
+    if %errorlevel%==0 (
+        echo [OK] ds_project exists
+    ) else (
+        echo [INFO] Creating ds_project...
+        call conda create -n ds_project python=3.11 -y
     )
+    echo [INFO] Installing packages...
+    call conda run -n ds_project pip install -r ..\requirements.txt
+    echo [INFO] Testing...
+    call conda run -n ds_project python ..\broken_env.py
+    echo.
+    echo ========================================
+    echo           SUCCESS - Setup Complete!
+    echo ========================================
+    pause
+    exit /b 0
+) else (
+    echo.
+    echo ========================================
+    echo [INFO] conda not in PATH - use Anaconda Prompt:
+    echo 1. Start Menu -^> "Anaconda Prompt"
+    echo 2. cd %~dp0..
+    echo 3. scripts\setup_env.bat
+    echo ========================================
+    pause
 )
-
-REM Install packages
-echo [INFO] Installing pandas...
-%CONDA_EXE% run -n %ENV_NAME% pip install -r ..\requirements.txt
-
-REM Smoke test
-echo [INFO] Testing broken_env.py...
-%CONDA_EXE% run -n %ENV_NAME% python ..\broken_env.py
-
-echo.
-echo ========================================
-echo           OK - Setup Complete!
-echo ========================================
-pause
