@@ -2,9 +2,9 @@
 Запуск проекта (Windows)
 
 ### Вариант 1. Через Git.
-git clone https://github.com/egorermolaev635-blip/end-to-end-project.git
-cd project
-scripts\setup_env.bat
+1. git clone https://github.com/egorermolaev635-blip/end-to-end-project.git
+2. cd project
+3. scripts\setup_env.bat
 
 ### Вариант 2: ZIP + двойной клик
 1. Скачайте ZIP с GitHub
