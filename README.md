@@ -14,7 +14,7 @@ scripts\setup_env.bat
 ### Проверка (smoke test)
 conda run -n data-project python broken_env.py
 
---Ождидаемый результат:
+Ождидаемый результат:
 python: C:\...\envs\data-project\python.exe
 pandas: 2.1.4
 
