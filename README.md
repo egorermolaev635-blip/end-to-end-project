@@ -1,7 +1,7 @@
 # end-to-end-project
-##  Запуск проекта (Windows)
+Запуск проекта (Windows)
 
-## Вариант 1. Через Git.
+### Вариант 1. Через Git.
 git clone https://github.com/ВАШ_НИК/project.git
 cd project
 scripts\setup_env.bat
