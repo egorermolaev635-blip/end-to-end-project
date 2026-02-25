@@ -4,47 +4,54 @@ echo ========================================
 echo Data Science Project Environment Setup
 echo ========================================
 
-REM Check files first
-if not exist "..\broken_env.py" (
-    echo [ERROR] broken_env.py not found!
+set PROJECT_DIR=%CD%
+set BROKEN_TEST=%PROJECT_DIR%\broken_env.py
+set REQ_FILE=%PROJECT_DIR%\requirements.txt
+
+echo Project directory: %PROJECT_DIR%
+
+if not exist "%BROKEN_TEST%" (
+    echo [ERROR] broken_env.py not found at: %BROKEN_TEST%
     pause
     exit /b 1
 )
-if not exist "..\requirements.txt" (
-    echo [ERROR] requirements.txt not found!
+if not exist "%REQ_FILE%" (
+    echo [ERROR] requirements.txt not found at: %REQ_FILE%
     pause
     exit /b 1
 )
 
-echo [OK] Files found OK
+echo [OK] All files found
 
-REM Try to find conda
 where conda >nul 2>nul
 if %errorlevel%==0 (
     echo [OK] conda found in PATH
-    call conda env list | findstr ds_project >nul
+    
+    conda env list | findstr ds_project >nul
     if %errorlevel%==0 (
-        echo [OK] ds_project exists
+        echo [OK] ds_project environment exists
     ) else (
-        echo [INFO] Creating ds_project...
-        call conda create -n ds_project python=3.11 -y
+        echo [INFO] Creating ds_project environment...
+        conda create -n ds_project python=3.11 -y
     )
+    
     echo [INFO] Installing packages...
-    call conda run -n ds_project pip install -r ..\requirements.txt
-    echo [INFO] Testing...
-    call conda run -n ds_project python ..\broken_env.py
+    conda run -n ds_project pip install -r "%REQ_FILE%"
+    
+    echo [INFO] Running smoke test...
+    conda run -n ds_project python "%BROKEN_TEST%"
+    
     echo.
     echo ========================================
     echo           SUCCESS - Setup Complete!
     echo ========================================
     pause
-    exit /b 0
 ) else (
     echo.
     echo ========================================
-    echo [INFO] conda not in PATH - use Anaconda Prompt:
-    echo 1. Start Menu -^> "Anaconda Prompt"
-    echo 2. cd %~dp0..
+    echo [INFO] conda not in PATH. Use Anaconda Prompt:
+    echo 1. Start Menu --^> "Anaconda Prompt"
+    echo 2. cd %PROJECT_DIR%
     echo 3. scripts\setup_env.bat
     echo ========================================
     pause
