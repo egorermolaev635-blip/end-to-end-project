@@ -2,7 +2,7 @@
 Запуск проекта (Windows)
 
 ### Вариант 1. Через Git.
-git clone https://github.com/ВАШ_НИК/project.git
+git clone https://github.com/egorermolaev635-blip/end-to-end-project.git
 cd project
 scripts\setup_env.bat
 
