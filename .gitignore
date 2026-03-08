@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.venv/
+
+# Локальные файлы
+setup_env.bat
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Другие данные (только свои оставляем)
+data/raw/*/
+!data/raw/variant_03/
