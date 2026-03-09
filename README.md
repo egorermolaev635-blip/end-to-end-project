@@ -19,8 +19,10 @@ python: C:\...\envs\data-project\python.exe
 pandas: 2.1.4
 
 ### Week 2: API Extract (variant_03)
+
+### Вариант 1.
 conda run -n data-project python src/extract.py
-# или
+### Вариант 2:
 python src/extract.py  (если активирована среда)
 
 Ожидаемый результат:
