@@ -14,9 +14,29 @@
 ### Проверка (smoke test)
 conda run -n data-project python broken_env.py
 
-Ождидаемый результат:
+Ожидаемый результат:
 python: C:\...\envs\data-project\python.exe
 pandas: 2.1.4
 
+### Week 2: API Extract (variant_03)
+conda run -n data-project python src/extract.py
+# или
+python src/extract.py  (если активирована среда)
+
+Ожидаемый результат:
+Variant: 3 - Погода (архив) - Новосибирск
+URL: https://archive-api.open-meteo.com/v1/archive
+Params: {'latitude': 55.75, 'longitude': 37.62, ...}
+Status: 200
+Data: 1234
+Saved: data/raw/variant_03/2026-03-09_18-39-XX.json
+
+Файлы создаются:
+data/raw/variant_03/YYYY-MM-DD_HH-MM-SS.json  <- raw API ответ
+docs/Data_Contract.md                         <- документация API
+
+### Требования
+- Windows 10/11
+- Anaconda/Miniconda (устанавливается автоматически)
 
 
