@@ -7,7 +7,7 @@ import os
 
 
 def main():
-    config_path = Path(__file__).parent / r"variant_03.yml"
+    config_path = Path(__file__).parent.parent / r"variant_03.yml"
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
