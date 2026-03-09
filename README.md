@@ -25,7 +25,8 @@ conda run -n data-project python src/extract.py
 ### Вариант 2:
 python src/extract.py  (если активирована среда)
 
-Ожидаемый результат:
+### Ожидаемый результат:
+
 Variant: 3 - Погода (архив) - Новосибирск
 
 URL: https://archive-api.open-meteo.com/v1/archive
