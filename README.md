@@ -48,5 +48,53 @@ docs/Data_Contract.md                         <- документация API
 ### Требования
 - Windows 10/11
 - Anaconda/Miniconda (устанавливается автоматически)
+## Week 3 — Data Normalization (Pandas)
+
+###  Что сделано
+
+* raw JSON преобразован в DataFrame
+* определено зерно: 1 строка = 1 час наблюдения
+* выполнена базовая очистка данных
+
+---
+
+###  Очистка
+
+* `time` → datetime
+* `temperature` → float
+* проверка и удаление пропусков
+* добавлены признаки: `date`, `hour`
+
+---
+
+###  Результат
+
+Данные сохранены в:
+
+```
+data/normalized/variant_XX/YYYY-MM-DD_HH-MM-SS.csv
+```
+
+Параметр: `index=False`
+
+---
+
+###  Data Contract
+
+Добавлена схема normalized-слоя:
+
+* поля, типы данных
+* nullable
+* описание колонок
+
+---
+
+###  Итог
+
+Собран pipeline:
+
+```
+raw JSON → DataFrame → очистка → CSV
+```
 
 
