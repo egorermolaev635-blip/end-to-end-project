@@ -35,4 +35,18 @@
 ---
 
 **Статус:** 🟢 Готово | **Прогресс:** 8/8
+Неделя 3. Pandas: DataFrame, типы данных, чтение JSON, первичная очистка  
+Чекпоинт | Открывается | Дедлайн  
+week3    | 2026-03-09  | 2026-03-22  
 
+Цели  
+- [x] Разобрать структуру raw JSON и определить зерно таблицы (1 строка = 1 час наблюдения)  
+- [x] Построить DataFrame из данных hourly (time, temperature_2m)  
+- [x] Проверить структуру данных: df.head(), df.shape, df.columns, df.dtypes  
+- [x] Привести типы данных (time → datetime, temperature → float)  
+- [x] Проверить и обработать пропуски (df.isna().sum(), при необходимости dropna)  
+- [x] Добавить дополнительные признаки (date, hour)  
+- [x] Сохранить normalized данные в data/normalized/variant_XX/YYYY-MM-DD_HH-MM-SS.csv (index=False)  
+- [x] Обновить docs/Data_Contract.md (схема normalized-слоя, типы, nullable, описание)  
+
+Статус: 🟢 Готово | Прогресс: 8/8
