@@ -2,21 +2,17 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-# 1. Загрузка normalized
-df = pd.read_csv("data/normalized/variant_03/your_file.csv")
+df = pd.read_csv("data/normalized/variant_03/2026-03-08_21-33-20.csv")
 
 print("Размер:", df.shape)
 print("Колонки:", df.columns.tolist())
 print(df.head())
 
-# 2. Добавление ключа join из config
 df["city_id"] = "RU_NSK"
 
-# 3. Приведение времени к datetime
 df["time"] = pd.to_datetime(df["time"])
 df["date"] = pd.to_datetime(df["date"])
 
-# 4. Загрузка справочника
 ref = pd.read_csv("reference/cities.csv")
 
 print("Размер справочника:", ref.shape)
@@ -24,7 +20,6 @@ print("Колонки справочника:", ref.columns.tolist())
 print("NULL в city_id:", ref["city_id"].isna().sum())
 print("Дубликаты city_id:", ref["city_id"].duplicated().sum())
 
-# 5. Join
 rows_before = len(df)
 
 df_joined = df.merge(
@@ -40,7 +35,6 @@ print("Строк до merge:", rows_before)
 print("Строк после merge:", rows_after)
 print("NULL в city_name после merge:", df_joined["city_name"].isna().sum())
 
-# 6. Построение mart
 mart = (
     df_joined
     .groupby(["date", "city_id", "city_name", "country_code"], as_index=False)
@@ -51,13 +45,12 @@ mart = (
     )
 )
 
-# 7. Дополнительная метрика
 mart["temperature_range"] = mart["temperature_max"] - mart["temperature_min"]
+mart = mart.round(2)
 
 print(mart.head())
 print("Размер mart:", mart.shape)
 
-# 8. Сохранение
 out_dir = Path("data/mart/variant_03")
 out_dir.mkdir(parents=True, exist_ok=True)
 
