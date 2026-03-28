@@ -50,3 +50,33 @@
 | date       | date     | no       | дата (выделена из time) |
 | hour       | int      | no       | час (0–23) |
 
+## Mart dataset
+
+**Описание:**  
+Одна строка = один день наблюдения температуры по Новосибирску.
+
+Источник данных: normalized CSV из `data/normalized/variant_03/...`, дополнительно обогащённый справочником города.
+
+---
+
+### Схема таблицы mart
+
+| поле               | тип       | nullable | описание |
+|-------------------|-----------|----------|----------|
+| date              | date      | no       | дата агрегирования |
+| city_id           | string    | no       | идентификатор города |
+| city_name         | string    | no       | название города |
+| country_code      | string    | no       | код страны |
+| temperature_mean  | float     | no       | средняя температура за день |
+| temperature_min   | float     | no       | минимальная температура за день |
+| temperature_max   | float     | no       | максимальная температура за день |
+| temperature_range | float     | no       | суточный диапазон температуры (`max - min`) |
+
+---
+
+### Логика расчёта
+
+- `temperature_mean` = среднее значение `temperature` за день
+- `temperature_min` = минимальное значение `temperature` за день
+- `temperature_max` = максимальное значение `temperature` за день
+- `temperature_range` = `temperature_max - temperature_min`
