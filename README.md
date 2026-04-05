@@ -151,50 +151,52 @@ data/mart/variant_03/mart_daily_.csv
 Собран полный pipeline:
 raw JSON → normalized CSV → mart CSV
 
+---
+
 ## Week 5 — PostgreSQL (Загрузка и SQL-проверки)
 
-Что сделано
-mart-данные загружены в PostgreSQL
-реализован скрипт загрузки load.py
-использована транзакция через engine.begin()
-обеспечена идемпотентность загрузки (if_exists="replace")
-выполнены SQL-проверки качества данных
+### Что сделано
+1.mart-данные загружены в PostgreSQL
+2.реализован скрипт загрузки load.py
+3.использована транзакция через engine.begin()
+4.обеспечена идемпотентность загрузки (if_exists="replace")
+5.выполнены SQL-проверки качества данных
 
-Подключение
-host: localhost
-port: 5432
-database: analytics_db
-user: analytics
-password: analytics_pass
+### Подключение
+- host: localhost
+- port: 5432
+- database: analytics_db
+- user: analytics
+- password: analytics_pass
 
-Загрузка
+### Загрузка
 Запуск:
 
 ```bash
 python src/load.py
 ```
 
-Что происходит
-чтение mart CSV
-проверка структуры DataFrame (shape, columns, dtypes)
-подключение к базе
-загрузка в таблицу mart_weather
+### Что происходит
+- чтение mart CSV
+- проверка структуры DataFrame (shape, columns, dtypes)
+- подключение к базе
+- загрузка в таблицу mart_weather
 
-Идемпотентность
+### Идемпотентность
 Повторный запуск не создаёт дубли
 таблица пересоздаётся при каждой загрузке
 
-SQL-проверки
+### SQL-проверки
 Проверки описаны в: docs/sql_checks.md
 
-Выполнены проверки:
+### Выполнены проверки:
 таблица не пустая (COUNT)
 диапазон дат (MIN/MAX)
 NULL в ключевых колонках
 дубли по (date, city_id)
 проверка температурных метрик
 
-Результат
+### Результат
 Данные загружены в PostgreSQL
 таблица: mart_weather
 SQL-запросы успешно выполняются
