@@ -16,6 +16,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Другие данные (только свои оставляем)
+# Другие данные
 data/raw/*/
 !data/raw/variant_03/
