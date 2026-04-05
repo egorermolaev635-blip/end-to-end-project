@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 venv/
 env/
 .venv/
@@ -16,6 +17,11 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Другие данные
-data/raw/*/
+# PostgreSQL / Docker
+pgdata*
+*.db
+
+# Другие данные 
+data/raw/*
 !data/raw/variant_03/
+!data/raw/variant_03/**
