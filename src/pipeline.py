@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 
 
-STATE_PATH = Path("data/state.json")
+STATE_PATH = Path("data/state/state.json")
 RAW_DIR = Path("data/raw/variant_03")
 MART_DIR = Path("data/mart/variant_03")
 
