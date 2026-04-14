@@ -1,1 +1,8 @@
-...
+{
+  "variant": "variant_03",
+  "source_type": "weather_archive_api",
+  "last_successful_run_at": "2026-04-13T22:55:12.054257",
+  "last_mode": "incremental",
+  "watermark": "2026-04-14",
+  "last_raw_path": "data/raw/variant_03/2026-04-13_22-55-02.json"
+}
