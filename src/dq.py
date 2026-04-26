@@ -88,7 +88,7 @@ def check_temperature_logic(df):
 
 def check_country_code(df):
     allowed = {"RU"}
-    bad_rows = int(~df["country_code"].isin(allowed).sum())
+    bad_rows = int((~df["country_code"].isin(allowed)).sum())
 
     if bad_rows > 0:
         return result("country_code_enum", "WARNING", "Unexpected country_code values found", {
