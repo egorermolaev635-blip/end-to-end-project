@@ -4,8 +4,7 @@ import pandas as pd
 
 
 MART_DIR = Path("data/mart/variant_03")
-REPORT_PATH = Path("data/dq_report.json")
-
+REPORT_PATH = Path("docs/dq_report.json")
 
 def latest_csv(folder: Path) -> Path:
     files = sorted(folder.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
