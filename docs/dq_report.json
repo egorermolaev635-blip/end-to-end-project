@@ -1,0 +1,58 @@
+{
+    "source_file": "data/mart/variant_03/mart_daily_2026-03-28_22-41-14.csv",
+    "rows": 2,
+    "checks": [
+        {
+            "check": "table_non_empty",
+            "status": "PASS",
+            "reason": "Table is not empty",
+            "details": {
+                "rows": 2
+            }
+        },
+        {
+            "check": "not_null_critical_fields",
+            "status": "PASS",
+            "reason": "Critical fields do not contain NULL",
+            "details": {
+                "date": 0,
+                "city_id": 0,
+                "city_name": 0,
+                "country_code": 0
+            }
+        },
+        {
+            "check": "unique_business_key",
+            "status": "PASS",
+            "reason": "Business key is unique",
+            "details": {
+                "key": [
+                    "date",
+                    "city_id"
+                ]
+            }
+        },
+        {
+            "check": "temperature_range",
+            "status": "PASS",
+            "reason": "Temperature values are realistic",
+            "details": {
+                "temperature_mean": 0,
+                "temperature_min": 0,
+                "temperature_max": 0
+            }
+        },
+        {
+            "check": "temperature_min_max_logic",
+            "status": "PASS",
+            "reason": "temperature_min <= temperature_max",
+            "details": {}
+        },
+        {
+            "check": "country_code_enum",
+            "status": "PASS",
+            "reason": "country_code values are valid",
+            "details": {}
+        }
+    ]
+}
