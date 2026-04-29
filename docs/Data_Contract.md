@@ -80,3 +80,96 @@
 - `temperature_min` = минимальное значение `temperature` за день
 - `temperature_max` = максимальное значение `temperature` за день
 - `temperature_range` = `temperature_max - temperature_min`
+---
+
+## Contract version
+
+**version:** 0.1  
+**last_updated:** 2026-04-29  
+
+---
+
+## Time and timezone
+
+- Часовой пояс источника: `Europe/Moscow`
+- Поле `time` интерпретируется как локальное время Москвы
+- Все агрегации в mart считаются в рамках одного календарного дня по `Europe/Moscow`
+
+---
+
+## Granularity
+
+- **Normalized:**  
+  `1 row = 1 hour (одно наблюдение в час)`
+
+- **Mart:**  
+  `1 row = 1 date (один день по одному городу)`
+
+---
+
+## Units
+
+| поле | единица |
+|------|--------|
+| temperature | °C |
+| temperature_mean | °C |
+| temperature_min | °C |
+| temperature_max | °C |
+| temperature_range | °C |
+| latitude | degrees |
+| longitude | degrees |
+
+---
+
+## Naming conventions
+
+- Все колонки в `snake_case`
+- Без кириллицы и пробелов
+- Идентификаторы: `*_id`
+- Даты: `date`
+- Время: `time`
+- Метрики явно названы (`temperature_mean`, а не `value`)
+- Запрещены:
+  - `value`
+  - `metric`
+  - `data1`
+
+---
+
+## Keys and constraints
+
+- Уникальный ключ mart: `date + city_id`
+
+- Ограничения:
+  - `temperature_min <= temperature_mean <= temperature_max`
+  - `temperature_range = temperature_max - temperature_min`
+  - `temperature_range >= 0`
+  - NULL значения запрещены во всех колонках mart
+
+---
+
+## Data quality assumptions
+
+- Температура находится в разумных пределах (примерно от -80 до +60 °C)
+- Нет пропущенных часов в рамках одного дня (иначе среднее может быть некорректным)
+- Все значения температуры — числовые
+
+---
+
+## Changelog
+
+| version | date | change | reason |
+|--------|------|--------|--------|
+| 0.1 | 2026-04-29 | Добавлены timezone, units, naming rules, constraints и versioning | Требования Week 9 (Data Governance) |
+
+---
+
+## Contract vs Code validation
+
+Минимальная проверка соответствия:
+
+- Проверка наличия всех колонок mart
+- Проверка отсутствия NULL
+- Проверка уникальности `date + city_id`
+- Проверка формулы: `temperature_range = temperature_max - temperature_min`
+- Проверка порядка: `temperature_min <= temperature_mean <= temperature_max`
