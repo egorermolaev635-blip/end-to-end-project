@@ -82,32 +82,37 @@
 - `temperature_range` = `temperature_max - temperature_min`
 ---
 
-## Contract version
+---
+
+## Версия контракта
 
 **version:** 0.1  
 **last_updated:** 2026-04-29  
 
 ---
 
-## Time and timezone
+## Время и часовой пояс
 
-- Часовой пояс источника: `Europe/Moscow`
-- Поле `time` интерпретируется как локальное время Москвы
-- Все агрегации в mart считаются в рамках одного календарного дня по `Europe/Moscow`
+- Часовой пояс источника: `Asia/Novosibirsk`
+- Поле `time` интерпретируется как локальное время Новосибирска
+- Все агрегирования в mart выполняются в рамках календарного дня по `Asia/Novosibirsk`
 
 ---
 
-## Granularity
+## Гранулярность данных
 
 - **Normalized:**  
-  `1 row = 1 hour (одно наблюдение в час)`
+  `1 row = 1 hour (одно почасовое наблюдение для одного города)`
 
 - **Mart:**  
-  `1 row = 1 date (один день по одному городу)`
+  `1 row = 1 date (один день для одного города)`
+
+Гранулярность mart:  
+одна строка соответствует агрегированным температурным показателям за один день по одному городу.
 
 ---
 
-## Units
+## Единицы измерения
 
 | поле | единица |
 |------|--------|
@@ -119,57 +124,33 @@
 | latitude | degrees |
 | longitude | degrees |
 
+Все температурные значения хранятся в градусах Цельсия.
+
 ---
 
-## Naming conventions
+## Правила именования
 
-- Все колонки в `snake_case`
-- Без кириллицы и пробелов
-- Идентификаторы: `*_id`
-- Даты: `date`
-- Время: `time`
-- Метрики явно названы (`temperature_mean`, а не `value`)
-- Запрещены:
+- Все названия колонок пишутся в формате `snake_case`
+- В названиях колонок не используются пробелы и кириллица
+- Идентификаторы имеют суффикс `_id`
+- Поля с датой называются `date`
+- Поля с временем называются `time`
+- Метрики должны иметь осмысленные названия:
+  - `temperature_mean`
+  - `temperature_min`
+  - `temperature_max`
+  - `temperature_range`
+- Запрещены неоднозначные названия:
   - `value`
   - `metric`
   - `data1`
+  - `field1`
 
 ---
 
-## Keys and constraints
+## Ключи и ограничения
 
-- Уникальный ключ mart: `date + city_id`
+Уникальный ключ для mart:
 
-- Ограничения:
-  - `temperature_min <= temperature_mean <= temperature_max`
-  - `temperature_range = temperature_max - temperature_min`
-  - `temperature_range >= 0`
-  - NULL значения запрещены во всех колонках mart
-
----
-
-## Data quality assumptions
-
-- Температура находится в разумных пределах (примерно от -80 до +60 °C)
-- Нет пропущенных часов в рамках одного дня (иначе среднее может быть некорректным)
-- Все значения температуры — числовые
-
----
-
-## Changelog
-
-| version | date | change | reason |
-|--------|------|--------|--------|
-| 0.1 | 2026-04-29 | Добавлены timezone, units, naming rules, constraints и versioning | Требования Week 9 (Data Governance) |
-
----
-
-## Contract vs Code validation
-
-Минимальная проверка соответствия:
-
-- Проверка наличия всех колонок mart
-- Проверка отсутствия NULL
-- Проверка уникальности `date + city_id`
-- Проверка формулы: `temperature_range = temperature_max - temperature_min`
-- Проверка порядка: `temperature_min <= temperature_mean <= temperature_max`
+```text
+date + city_id
