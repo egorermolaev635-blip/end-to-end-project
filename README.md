@@ -41,7 +41,7 @@ Variant: 3 - Погода (архив) - Новосибирск
 
 URL: https://archive-api.open-meteo.com/v1/archive  
 
-Params: {'latitude': 55.75, 'longitude': 37.62, ...}  
+Params: {'latitude': 55.0084, 'longitude': 82.9357, 'timezone': 'Asia/Novosibirsk', ...}
 
 Status: 200  
 
