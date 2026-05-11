@@ -572,3 +572,26 @@ API → raw → normalized → mart → PostgreSQL → DQ → visualization → 
 - воспроизводимость  
 - согласованность  
 - прозрачность изменений  
+
+## Неделя 10 — Docker: PostgreSQL, Metabase и BI-дашборд
+
+**Статус:** 🟢 Готово
+
+### Цель недели
+
+На неделе 10 был собран воспроизводимый локальный стенд для работы с витриной данных:
+
+- PostgreSQL поднимается через `docker compose`;
+- данные PostgreSQL сохраняются в отдельном volume;
+- Metabase поднимается как BI-инструмент;
+- Metabase подключается к PostgreSQL внутри Docker Compose-сети;
+- дашборд строится по таблице `mart_weather` из PostgreSQL, а не по CSV-файлу.
+
+---
+
+### Состав Docker Compose-стенда
+
+В проект добавлен файл:
+
+```text
+docker-compose.yml
