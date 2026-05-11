@@ -579,7 +579,9 @@ API → raw → normalized → mart → PostgreSQL → DQ → visualization → 
 
 ### Цель недели
 
-На неделе 10 был собран воспроизводимый локальный стенд для работы с витриной данных:
+На неделе 10 был собран воспроизводимый локальный стенд для работы с витриной данных.
+
+В рамках задания были выполнены следующие действия:
 
 - PostgreSQL поднимается через `docker compose`;
 - данные PostgreSQL сохраняются в отдельном volume;
@@ -595,3 +597,165 @@ API → raw → normalized → mart → PostgreSQL → DQ → visualization → 
 
 ```text
 docker-compose.yml
+```
+
+В нём описаны два сервиса:
+
+| Сервис | Назначение |
+|---|---|
+| `postgres` | база данных PostgreSQL для хранения витрины |
+| `metabase` | BI-инструмент для построения дашборда |
+
+Также используются два volume:
+
+| Volume | Назначение |
+|---|---|
+| `pgdata` | хранит данные PostgreSQL |
+| `metabase_data` | хранит настройки Metabase и созданные дашборды |
+
+---
+
+### Запуск сервисов
+
+Для запуска PostgreSQL и Metabase используется команда:
+
+```bash
+docker compose up -d
+```
+
+Проверка запущенных контейнеров:
+
+```bash
+docker compose ps
+```
+
+После запуска сервисов доступны:
+
+```text
+PostgreSQL: localhost:5432
+Metabase:   http://localhost:3000
+```
+
+---
+
+### Загрузка витрины в PostgreSQL
+
+Витрина загружается в PostgreSQL через существующий скрипт:
+
+```bash
+python src/load.py
+```
+
+Скрипт автоматически берёт последний CSV-файл из папки:
+
+```text
+data/mart/variant_03/
+```
+
+и загружает его в таблицу:
+
+```text
+mart_weather
+```
+
+Используемое подключение:
+
+```text
+database: analytics_db
+user: analytics
+password: analytics_pass
+host: localhost
+port: 5432
+```
+
+---
+
+### Проверка таблицы в PostgreSQL
+
+Для ручной проверки можно зайти в PostgreSQL:
+
+```bash
+docker compose exec postgres psql -U analytics -d analytics_db
+```
+
+Проверочные SQL-команды:
+
+```sql
+\dt
+SELECT COUNT(*) FROM mart_weather;
+SELECT * FROM mart_weather LIMIT 5;
+```
+
+---
+
+### Подключение Metabase к PostgreSQL
+
+В Metabase используется подключение:
+
+```text
+Database type: PostgreSQL
+Host: postgres
+Port: 5432
+Database name: analytics_db
+Username: analytics
+Password: analytics_pass
+```
+
+Важно: в Metabase используется `Host = postgres`, потому что Metabase работает внутри Docker Compose-сети и обращается к PostgreSQL по имени сервиса.
+
+При этом `src/load.py` подключается к `localhost:5432`, потому что запускается с локальной машины, а порт PostgreSQL проброшен наружу.
+
+---
+
+### BI-дашборд
+
+В Metabase создан дашборд:
+
+```text
+Weather Analytics Dashboard
+```
+
+Дашборд построен по таблице:
+
+```text
+mart_weather
+```
+
+В него входят три визуализации:
+
+| № | Название | Тип | Поля |
+|---|---|---|---|
+| 1 | Средняя температура по дням | line chart | `date`, `temperature_mean` |
+| 2 | Максимальная температура по дням | bar chart | `date`, `temperature_max` |
+| 3 | Сводка температурной витрины | table | `date`, `city_name`, `temperature_mean`, `temperature_min`, `temperature_max`, `temperature_range` |
+
+Так как текущая mart-витрина содержит небольшой набор данных, третья визуализация сделана в виде таблицы. Это позволяет явно показать итоговую витрину, из которой строятся графики.
+
+---
+
+### BI-артефакты
+
+Скриншоты BI-дашборда сохранены в папке:
+
+```text
+docs/bi/
+```
+
+Файлы:
+
+```text
+docs/bi/dashboard_overview.png
+docs/bi/chart_timeseries.png
+docs/bi/chart_summary.png
+```
+
+---
+
+### Разница между Docker-командами
+
+`docker compose stop` останавливает контейнеры, но не удаляет их.
+
+`docker compose down` удаляет контейнеры, но сохраняет volumes.
+
+`docker compose down -v` удаляет контейнеры и volumes. В этом случае данные PostgreSQL и настройки Metabase будут удалены.
+
