@@ -590,3 +590,281 @@ API → raw → normalized → mart → PostgreSQL → DQ → visualization → 
 Проект перешёл от этапа "данные просто есть" к этапу:
 
 "данные описаны, стандартизированы и управляемы"
+
+# Неделя 10. Docker: контейнеризация PostgreSQL, Metabase и BI-дашборд
+
+| Чекпоинт | Открывается | Дедлайн   |
+|----------|------------|-----------|
+| `week10` | 2026-04-27 | 2026-05-12 |
+
+---
+
+### Цели
+
+- ✅ Добавить `docker-compose.yml` для запуска PostgreSQL и Metabase
+- ✅ Поднять сервисы одной командой через Docker Compose
+- ✅ Подключить volume для PostgreSQL, чтобы данные не пропадали после пересоздания контейнера
+- ✅ Подключить volume для Metabase, чтобы сохранялись настройки и дашборды
+- ✅ Загрузить mart-витрину в PostgreSQL через существующий `src/load.py`
+- ✅ Проверить, что таблица `mart_weather` находится в базе данных, а не только в CSV
+- ✅ Подключить Metabase к PostgreSQL
+- ✅ Собрать BI-дашборд из трёх визуализаций
+- ✅ Сохранить скриншоты дашборда в `docs/bi/`
+
+---
+
+### Что сделано
+
+- добавлен файл `docker-compose.yml`
+- описан сервис `postgres` на базе образа `postgres:16`
+- описан сервис `metabase` на базе образа `metabase/metabase:latest`
+- для PostgreSQL добавлен volume `pgdata`
+- для Metabase добавлен volume `metabase_data`
+- сервисы запускаются одной командой:
+  - `docker compose up -d`
+- проверка контейнеров выполняется командой:
+  - `docker compose ps`
+- mart-витрина загружается в PostgreSQL через уже существующий скрипт `src/load.py`
+- данные загружаются в таблицу `mart_weather`
+- Metabase подключён к PostgreSQL внутри Docker Compose-сети
+- создан дашборд `Weather Analytics Dashboard`
+- сохранены BI-скриншоты в `docs/bi/`
+
+---
+
+### Docker Compose
+
+Файл:
+`docker-compose.yml`
+
+В compose-файле описаны два сервиса:
+
+| Сервис | Назначение |
+|--------|------------|
+| `postgres` | база данных PostgreSQL для хранения mart-витрины |
+| `metabase` | BI-инструмент для построения дашборда |
+
+---
+
+### Volumes
+
+В проекте используются два volume:
+
+| Volume | Назначение |
+|--------|------------|
+| `pgdata` | хранит данные PostgreSQL |
+| `metabase_data` | хранит настройки и дашборды Metabase |
+
+Главная идея недели:
+
+контейнеры можно пересоздавать, но данные должны храниться отдельно.
+
+Поэтому данные PostgreSQL не должны храниться только внутри контейнера. Они сохраняются в volume `pgdata`.
+
+---
+
+### Запуск
+
+Запуск сервисов:
+
+```bash
+docker compose up -d
+```
+
+Проверка запущенных контейнеров:
+
+```bash
+docker compose ps
+```
+
+После запуска доступны:
+
+```text
+PostgreSQL: localhost:5432
+Metabase:   http://localhost:3000
+```
+
+---
+
+### Загрузка mart-витрины в PostgreSQL
+
+Для загрузки данных используется существующий скрипт:
+
+```bash
+python src/load.py
+```
+
+Скрипт берёт последний mart-файл из папки:
+
+```text
+data/mart/variant_03/
+```
+
+и загружает данные в таблицу:
+
+```text
+mart_weather
+```
+
+Подключение в `src/load.py`:
+
+```text
+database: analytics_db
+user: analytics
+password: analytics_pass
+host: localhost
+port: 5432
+```
+
+---
+
+### Проверка таблицы в PostgreSQL
+
+Подключение к базе внутри контейнера:
+
+```bash
+docker compose exec postgres psql -U analytics -d analytics_db
+```
+
+Проверочные SQL-команды:
+
+```sql
+\dt
+SELECT COUNT(*) FROM mart_weather;
+SELECT * FROM mart_weather LIMIT 5;
+```
+
+---
+
+### Подключение Metabase
+
+Metabase подключается к PostgreSQL со следующими параметрами:
+
+```text
+Database type: PostgreSQL
+Host: postgres
+Port: 5432
+Database name: analytics_db
+Username: analytics
+Password: analytics_pass
+```
+
+Важно:
+
+`Host = postgres`, потому что Metabase работает внутри Docker Compose-сети и видит PostgreSQL по имени сервиса.
+
+При этом `src/load.py` использует `localhost:5432`, потому что запускается с локальной машины, а порт PostgreSQL проброшен наружу.
+
+---
+
+### BI-дашборд
+
+В Metabase создан дашборд:
+
+```text
+Weather Analytics Dashboard
+```
+
+Источник данных:
+
+```text
+PostgreSQL → analytics_db → public → mart_weather
+```
+
+---
+
+### Визуализации
+
+В дашборд добавлены 3 визуализации:
+
+1. Средняя температура по дням  
+   - тип: line chart  
+   - поля: `date`, `temperature_mean`
+
+2. Максимальная температура по дням  
+   - тип: bar chart  
+   - поля: `date`, `temperature_max`
+
+3. Сводка температурной витрины  
+   - тип: table  
+   - поля: `date`, `city_name`, `temperature_mean`, `temperature_min`, `temperature_max`, `temperature_range`
+
+Так как текущая mart-витрина содержит небольшой объём данных, третья визуализация сделана в виде таблицы. Это позволяет показать итоговые строки витрины без искусственного усложнения графиков.
+
+---
+
+### BI-артефакты
+
+Скриншоты сохранены в папке:
+
+```text
+docs/bi/
+```
+
+Файлы:
+
+```text
+docs/bi/dashboard_overview.png
+docs/bi/chart_timeseries.png
+docs/bi/chart_summary.png
+```
+
+Описание:
+
+| Файл | Содержание |
+|------|------------|
+| `dashboard_overview.png` | общий вид дашборда в Metabase |
+| `chart_timeseries.png` | график средней температуры по дням |
+| `chart_summary.png` | табличная сводка mart-витрины |
+
+---
+
+### Проверка volumes
+
+Проверка созданных volumes:
+
+```bash
+docker volume ls
+```
+
+Проверка контейнеров:
+
+```bash
+docker compose ps
+```
+
+Разница между командами:
+
+- `docker compose stop` — останавливает контейнеры, но не удаляет их
+- `docker compose down` — удаляет контейнеры, но сохраняет volumes
+- `docker compose down -v` — удаляет контейнеры и volumes, поэтому данные PostgreSQL и настройки Metabase пропадут
+
+---
+
+### Результат
+
+PostgreSQL и Metabase поднимаются одной командой через Docker Compose.  
+Mart-витрина загружается в таблицу `mart_weather` в PostgreSQL.  
+Metabase подключается к PostgreSQL и строит дашборд по таблице из базы данных, а не по CSV-файлу.  
+Скриншоты BI-дашборда сохранены в `docs/bi/`.
+
+---
+
+### Итог
+
+Pipeline расширен до BI-стенда:
+
+API → raw → normalized → mart → PostgreSQL → Metabase → BI Dashboard
+
+Добавлены ключевые элементы воспроизводимой среды:
+
+- Docker Compose
+- PostgreSQL container
+- Metabase container
+- volumes для хранения данных и настроек
+- BI-дашборд по таблице из PostgreSQL
+- артефакты в `docs/bi/`
+
+---
+
+**Статус:** 🟢 Готово | **Прогресс:** 9/9
