@@ -868,3 +868,332 @@ API → raw → normalized → mart → PostgreSQL → Metabase → BI Dashboard
 ---
 
 **Статус:** 🟢 Готово | **Прогресс:** 9/9
+
+# Неделя 11. Airflow: оркестрация ETL-процесса
+
+| Чекпоинт | Открывается | Дедлайн   |
+|----------|------------|-----------|
+| `week11` | 2026-05-04 | 2026-05-19 |
+
+---
+
+### Цели
+
+- ✅ Добавить Apache Airflow для оркестрации ETL-процесса
+- ✅ Создать DAG `etl_variant_03`
+- ✅ Настроить цепочку задач `extract → transform → load → dq`
+- ✅ Настроить зависимости между задачами
+- ✅ Добавить расписание запуска DAG
+- ✅ Обеспечить корректную работу ETL-скриптов внутри Airflow-контейнера
+- ✅ Настроить подключение Airflow к PostgreSQL
+- ✅ Проверить успешный запуск DAG через Airflow UI
+- ✅ Сохранить скриншоты успешного выполнения в `docs/airflow/`
+
+---
+
+### Что сделано
+
+- добавлен файл `docker-compose.airflow.yml`
+- добавлен запуск Airflow через Docker Compose
+- создан основной DAG `etl_variant_03`
+- DAG запускает полный ETL-процесс:
+  - `extract`
+  - `transform`
+  - `load`
+  - `dq`
+- настроена последовательность выполнения задач:
+  - `extract → transform → load → dq`
+- добавлено расписание запуска:
+  - `*/5 * * * *`
+- установлен параметр `catchup=False`
+- добавлен список зависимостей для Airflow в `airflow/requirements.txt`
+- обновлён `src/extract.py` для стабильного получения raw-данных
+- обновлён `src/transform.py` для запуска transform-этапа из Airflow
+- обновлён `src/load.py` для работы с переменной окружения `DB_URL`
+- обновлён `src/dq.py` для вывода итогового DQ-статуса в логи
+- проверен успешный запуск DAG в Airflow UI
+- сохранены скриншоты результата выполнения
+
+---
+
+### Основные файлы
+
+- `docker-compose.airflow.yml` — запуск Airflow
+- `airflow/requirements.txt` — зависимости Airflow-контейнера
+- `airflow/dags/etl_variant_03.py` — основной DAG проекта
+- `src/extract.py` — получение raw JSON
+- `src/transform.py` — normalized + mart
+- `src/load.py` — загрузка mart в PostgreSQL
+- `src/dq.py` — проверки качества данных
+- `docs/airflow/README.md` — инструкция по запуску и проверке
+- `docs/airflow/` — скриншоты успешного запуска
+
+---
+
+### DAG
+
+Название DAG:
+
+```text
+etl_variant_03
+```
+
+Файл:
+
+```text
+airflow/dags/etl_variant_03.py
+```
+
+Цепочка задач:
+
+```text
+extract → transform → load → dq
+```
+
+---
+
+### Задачи DAG
+
+| Task | Назначение |
+|------|------------|
+| `extract` | получает raw JSON |
+| `transform` | строит normalized-слой и mart |
+| `load` | загружает mart в PostgreSQL |
+| `dq` | выполняет DQ-проверки |
+
+---
+
+### Расписание
+
+DAG настроен на запуск каждые 5 минут:
+
+```text
+*/5 * * * *
+```
+
+Для учебной проверки также используется ручной запуск через Airflow UI:
+
+```text
+Trigger DAG
+```
+
+---
+
+### Настройки DAG
+
+В DAG используются параметры:
+
+```text
+start_date = 2026-03-01
+catchup = False
+schedule = */5 * * * *
+```
+
+`catchup=False` нужен, чтобы Airflow не запускал старые пропущенные интервалы.
+
+---
+
+### Запуск
+
+Сначала запускается основной Docker Compose с PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+После этого запускается Airflow:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
+```
+
+Проверка контейнеров:
+
+```bash
+docker compose ps
+```
+
+---
+
+### Airflow UI
+
+После запуска Airflow доступен в браузере:
+
+```text
+http://localhost:8080
+```
+
+Логин и пароль:
+
+```text
+airflow / airflow
+```
+
+В интерфейсе Airflow выполняются действия:
+
+1. включить DAG `etl_variant_03`
+2. запустить DAG вручную через Trigger DAG
+3. дождаться статуса `success`
+4. открыть Graph View
+5. проверить логи задачи `dq`
+
+---
+
+### Подключение к PostgreSQL
+
+При локальном запуске `src/load.py` подключается к PostgreSQL через:
+
+```text
+localhost:5432
+```
+
+Но внутри Airflow-контейнера `localhost` указывает на сам контейнер Airflow.
+
+Поэтому для Airflow используется имя сервиса Docker Compose:
+
+```text
+postgres:5432
+```
+
+Строка подключения внутри DAG:
+
+```text
+postgresql+psycopg2://analytics:analytics_pass@postgres:5432/analytics_db
+```
+
+---
+
+### Изменения в ETL-скриптах
+
+#### `src/extract.py`
+
+- исправлен запрос к Open-Meteo Archive API
+- используются параметры `start_date` и `end_date`
+- добавлен fallback на последний локальный raw-файл
+- добавлены логи для Airflow
+
+#### `src/transform.py`
+
+- добавлен отдельный transform-этап
+- выполняется notebook `notebooks/week3_eda.ipynb`
+- после normalized-слоя запускается построение mart
+- в лог выводится количество строк
+
+#### `src/load.py`
+
+- добавлена поддержка переменной окружения `DB_URL`
+- автоматически выбирается последний mart CSV
+- загрузка выполняется в таблицу `mart_weather`
+- сохранена идемпотентность через `if_exists="replace"`
+- в лог выводится количество загруженных строк
+
+#### `src/dq.py`
+
+- выполняются проверки качества mart-слоя
+- формируется DQ-отчёт
+- в лог выводится итог:
+  - PASS
+  - WARNING
+  - FAIL
+- при наличии FAIL задача завершается с ошибкой
+
+---
+
+### Ожидаемые строки в логах
+
+В логах Airflow должны быть видны основные этапы:
+
+```text
+config: variant_03.yml
+raw saved: data/raw/variant_03/....json
+normalized rows: ...
+mart rows: ...
+loaded rows to postgres: ...
+dq checks: PASS=6 WARNING=0 FAIL=0
+```
+
+Эти строки подтверждают, что DAG выполнил весь ETL-процесс, а не просто формально запустился.
+
+---
+
+### Скриншоты
+
+Скриншоты сохранены в папке:
+
+```text
+docs/airflow/
+```
+
+Файлы:
+
+```text
+docs/airflow/successful_run.png
+docs/airflow/graph_view.png
+docs/airflow/task_log.png
+```
+
+Описание:
+
+| Файл | Содержание |
+|------|------------|
+| `successful_run.png` | список успешных DAG Run |
+| `graph_view.png` | граф задач `extract → transform → load → dq` |
+| `task_log.png` | лог задачи `dq` с результатом проверок |
+
+---
+
+### Проверка результата
+
+DAG завершился со статусом:
+
+```text
+success
+```
+
+Все задачи выполнены последовательно:
+
+```text
+extract → transform → load → dq
+```
+
+В логах задачи `dq` получен результат:
+
+```text
+dq checks: PASS=6 WARNING=0 FAIL=0
+```
+
+---
+
+### Результат
+
+Airflow успешно запускает полный ETL-процесс:
+
+```text
+raw JSON → normalized CSV → mart CSV → PostgreSQL → DQ
+```
+
+Теперь pipeline можно запускать не только отдельными Python-скриптами, но и через Airflow DAG.
+
+Скриншоты успешного запуска сохранены в `docs/airflow/`.
+
+---
+
+### Итог
+
+Pipeline расширен до уровня оркестрации:
+
+API → raw → normalized → mart → PostgreSQL → DQ → Airflow DAG
+
+Добавлены ключевые элементы Airflow:
+
+- DAG
+- расписание
+- зависимости между задачами
+- ручной запуск через UI
+- история запусков
+- логи задач
+- скриншоты результата
+
+---
+
+**Статус:** 🟢 Готово | **Прогресс:** 9/9
