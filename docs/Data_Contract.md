@@ -283,4 +283,69 @@ PostgreSQL запускается через Docker Compose.
 | Date | Version | Changes |
 |---|---|---|
 | 2026-05-11 | 0.2 | Добавлен PostgreSQL/BI-слой: загрузка mart-витрины в таблицу `mart_weather`, подключение Metabase и BI-дашборд по данным из PostgreSQL |
+## Week 11 Update — Airflow orchestration
 
+### Orchestration Layer
+
+На неделе 11 добавлен Apache Airflow для запуска ETL-процесса по расписанию и через UI.
+
+Основной DAG:
+
+`etl_variant_03`
+
+Файл DAG:
+
+`airflow/dags/etl_variant_03.py`
+
+Цепочка задач:
+
+`extract → transform → load → dq`
+
+---
+
+### DAG Tasks
+
+| Task | Description |
+|---|---|
+| `extract` | получение raw JSON |
+| `transform` | подготовка normalized и mart |
+| `load` | загрузка mart в PostgreSQL |
+| `dq` | DQ-проверки mart-слоя |
+
+---
+
+### Schedule
+
+| Parameter | Value |
+|---|---|
+| `start_date` | `2026-03-01` |
+| `catchup` | `False` |
+| `schedule` | `*/5 * * * *` |
+
+---
+
+### Airflow PostgreSQL Connection
+
+При запуске из Airflow используется подключение к PostgreSQL по имени сервиса:
+
+`postgres:5432`
+
+Строка подключения:
+
+`postgresql+psycopg2://analytics:analytics_pass@postgres:5432/analytics_db`
+
+---
+
+### DQ Result
+
+Ожидаемый итог финальной задачи `dq`:
+
+`dq checks: PASS=6 WARNING=0 FAIL=0`
+
+---
+
+### Changelog
+
+| Date | Version | Changes |
+|---|---|---|
+| 2026-05-18 | 0.3 | Добавлен Airflow DAG `etl_variant_03` для запуска цепочки `extract → transform → load → dq`, расписание, логи выполнения и скриншоты результата |
