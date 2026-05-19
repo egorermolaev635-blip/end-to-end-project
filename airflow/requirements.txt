@@ -1,0 +1,8 @@
+pandas>=2.0.0
+sqlalchemy
+psycopg2-binary
+requests
+PyYAML
+nbconvert
+ipykernel
+pendulum
