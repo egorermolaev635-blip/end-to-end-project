@@ -1,11 +1,15 @@
 from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine
+import os
 
-MART_DIR = Path("data/mart/variant_03")
-TABLE_NAME = "mart_weather"
+MART_DIR = Path(os.getenv("MART_DIR", "data/mart/variant_03"))
+TABLE_NAME = os.getenv("TABLE_NAME", "mart_weather")
 
-DB_URL = "postgresql+psycopg2://analytics:analytics_pass@localhost:5432/analytics_db"
+DB_URL = os.getenv(
+    "DB_URL",
+    "postgresql+psycopg2://analytics:analytics_pass@localhost:5432/analytics_db"
+)
 
 def get_latest_mart_file(mart_dir: Path) -> Path:
     files = list(mart_dir.glob("*.csv"))
@@ -23,7 +27,7 @@ def main():
     df = pd.read_csv(mart_path)
     print("Loaded mart file:", mart_path)
     print("Shape", df.shape)
-    print("Colums:", list(df.columns))
+    print("Columns:", list(df.columns))
     print("Dtypes:")
     print(df.dtypes)
 
@@ -36,6 +40,8 @@ def main():
             if_exists="replace",
             index=False
         )
+    print(f"loaded rows to postgres: {len(df)}")
+    print(f"table: {TABLE_NAME}")
     print(f"Table '{TABLE_NAME}' loaded successfully.")
 
 if __name__ == "__main__":
