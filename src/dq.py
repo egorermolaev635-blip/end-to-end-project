@@ -122,6 +122,10 @@ def run_dq():
     with open(REPORT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=4)
 
+    pass_n = sum(1 for c in checks if c["status"] == "PASS")
+    warn_n = sum(1 for c in checks if c["status"] == "WARNING")
+    fail_n = sum(1 for c in checks if c["status"] == "FAIL")
+    print(f"dq checks: PASS={pass_n} WARNING={warn_n} FAIL={fail_n}")
     print(json.dumps(report, ensure_ascii=False, indent=4))
 
     has_fail = any(check["status"] == "FAIL" for check in checks)
