@@ -1,3 +1,7 @@
+networks:
+  etl_network:
+    name: etl_network
+
 services:
   postgres:
     image: postgres:16
@@ -10,6 +14,8 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - etl_network
 
   metabase:
     image: metabase/metabase:latest
@@ -22,6 +28,8 @@ services:
       - metabase_data:/metabase-data
     environment:
       MB_DB_FILE: /metabase-data/metabase.db
+    networks:
+      - etl_network
 
 volumes:
   pgdata:
