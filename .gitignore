@@ -17,11 +17,16 @@ Thumbs.db
 .vscode/
 .idea/
 
-# PostgreSQL / Docker
-pgdata*
+# PostgreSQL / Docker / Metabase
+pgdata/
+pgdata*/
+metabase_data/
 *.db
 
-# Другие данные 
-data/raw/*
-!data/raw/variant_03/
-!data/raw/variant_03/**
+# Данные 
+data/raw/**/*.json
+data/normalized/**/*.csv
+data/mart/**/*.csv
+
+# Если Airflow генерирует отчеты качества данных в json/html
+docs/airflow/*_report.json
