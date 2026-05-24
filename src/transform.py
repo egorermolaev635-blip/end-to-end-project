@@ -1,7 +1,8 @@
 import subprocess
 import sys
+import argparse
 from pathlib import Path
-
+import os
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -10,20 +11,17 @@ NORMALIZED_DIR = PROJECT_ROOT / "data" / "normalized" / "variant_03"
 CONFIG_PATH = PROJECT_ROOT / "variant_03.yml"
 
 
-def latest_csv(folder: Path) -> Path:
-    files = list(folder.glob("*.csv"))
-    if not files:
-        raise FileNotFoundError(f"Нет csv-файлов в {folder}")
-    return max(files, key=lambda f: f.stat().st_mtime)
-
-
 def main() -> None:
-    print(f"config: {CONFIG_PATH.name}")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True)
+    args = parser.parse_args()
+    target_date = args.date
 
     if not NOTEBOOK.exists():
         raise FileNotFoundError(f"Notebook not found: {NOTEBOOK}")
 
-    print(f"transform: executing {NOTEBOOK.relative_to(PROJECT_ROOT)}")
+    env = os.environ.copy()
+    env["TARGET_DATE"] = target_date
 
     result = subprocess.run(
         [
@@ -37,18 +35,19 @@ def main() -> None:
             str(NOTEBOOK),
         ],
         cwd=PROJECT_ROOT,
+        env=env,
     )
     if result.returncode != 0:
         raise RuntimeError("Ошибка при выполнении ноутбука transform")
 
-    normalized_path = latest_csv(NORMALIZED_DIR)
+    normalized_path = NORMALIZED_DIR / f"normalized_{target_date}.csv"
+    if not normalized_path.exists():
+        raise FileNotFoundError(f"Missing file: {normalized_path}")
+
     df = pd.read_csv(normalized_path)
-    print(f"normalized rows: {len(df)}")
-    print(f"normalized saved: {normalized_path}")
 
     mart_script = PROJECT_ROOT / "src" / "showcase_mart.py"
-    print(f"transform: running {mart_script.relative_to(PROJECT_ROOT)}")
-    mart_result = subprocess.run([sys.executable, str(mart_script)], cwd=PROJECT_ROOT)
+    mart_result = subprocess.run([sys.executable, str(mart_script), "--date", target_date], cwd=PROJECT_ROOT)
     if mart_result.returncode != 0:
         raise RuntimeError("Ошибка при построении mart")
 
