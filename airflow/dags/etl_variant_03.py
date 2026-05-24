@@ -1,5 +1,4 @@
 import os
-
 import pendulum
 from airflow import DAG
 from airflow.operators.bash import BashOperator
@@ -13,19 +12,19 @@ CONFIG_PATH = "variant_03.yml"
 
 with DAG(
     dag_id="etl_variant_03",
-    description="Сквозной ETL: extract -> transform -> load -> dq",
+    description="Сквозной инкрементальный ETL: extract -> transform -> dq -> load",
     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
-    schedule="*/5 * * * *",
+    schedule="0 2 * * *",
     catchup=False,
-    tags=["etl", "variant_03", "week11"],
+    tags=["etl", "variant_03", "week12"],
     default_args={"owner": "variant_03"},
 ) as dag:
+    
     extract = BashOperator(
         task_id="extract",
         bash_command=(
             f"cd {PROJECT_DIR} && "
-            f'echo "config: {CONFIG_PATH}" && '
-            "python src/extract.py"
+            f"python src/extract.py --date {{{{ ds }}}}"
         ),
     )
 
@@ -33,8 +32,15 @@ with DAG(
         task_id="transform",
         bash_command=(
             f"cd {PROJECT_DIR} && "
-            f'echo "config: {CONFIG_PATH}" && '
-            "python src/transform.py"
+            f"python src/transform.py --date {{{{ ds }}}}"
+        ),
+    )
+
+    dq = BashOperator(
+        task_id="dq",
+        bash_command=(
+            f"cd {PROJECT_DIR} && "
+            f"python src/dq.py --date {{{{ ds }}}}"
         ),
     )
 
@@ -43,19 +49,8 @@ with DAG(
         bash_command=(
             f"cd {PROJECT_DIR} && "
             f'export DB_URL="{DB_URL}" && '
-            f'echo "config: {CONFIG_PATH}" && '
-            f'echo "db: {DB_URL}" && '
-            "python src/load.py"
+            f"python src/load.py --date {{{{ ds }}}}"
         ),
     )
 
-    dq = BashOperator(
-        task_id="dq",
-        bash_command=(
-            f"cd {PROJECT_DIR} && "
-            f'echo "config: {CONFIG_PATH}" && '
-            "python src/dq.py"
-        ),
-    )
-
-    extract >> transform >> load >> dq
+    extract >> transform >> dq >> load
