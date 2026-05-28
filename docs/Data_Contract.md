@@ -400,3 +400,71 @@ PostgreSQL запускается через Docker Compose.
 | Date | Version | Changes |
 |---|---|---|
 | 2026-05-24 | 0.4 | **Переход на инкрементальность и Quality Gate:** Изменен порядок тасок (`extract → transform → dq → load`). Введена полная изоляция данных по дате периода `{{ ds }}` с фиксацией шаблонов имен файлов. Реализована идемпотентная загрузка в базу данных через паттерн Delete period + Insert. |
+
+## Week 13 Update — ML / anomaly analysis layer
+
+### Scope
+
+На неделе 13 схема raw, normalized и mart-слоёв не менялась.
+
+Добавлен отдельный аналитический слой для поиска температурных аномалий. Он использует уже подготовленный normalized CSV и сохраняет результаты в `docs/ml/`.
+
+### Source Dataset
+
+Источник для анализа:
+
+```text
+data/normalized/variant_03/2026-03-08_21-33-20.csv
+```
+
+Гранулярность:
+
+```text
+1 строка = 1 час наблюдения
+```
+
+Основная метрика:
+
+```text
+temperature
+```
+
+### ML / Analytics Artifacts
+
+| Artifact | Description |
+|---|---|
+| `notebooks/week13_ml.ipynb` | ноутбук с разбором leakage и поиском аномалий |
+| `docs/ml/week13_summary.md` | краткий текстовый итог недели |
+| `docs/ml/anomalies_top.csv` | таблица найденных аномальных точек |
+| `docs/ml/metrics.png` | график температурного ряда с выделенной аномалией |
+
+### Anomaly Output Schema
+
+Файл:
+
+```text
+docs/ml/anomalies_top.csv
+```
+
+| Column | Type | Description |
+|---|---|---|
+| `time` | datetime | время наблюдения |
+| `date` | date | дата наблюдения |
+| `hour` | integer | час наблюдения |
+| `temperature` | float | температура, °C |
+| `z_score` | float | стандартное отклонение точки от среднего |
+| `iqr_lower_bound` | float | нижняя граница IQR |
+| `iqr_upper_bound` | float | верхняя граница IQR |
+| `distance_from_iqr_bound` | float | расстояние от ближайшей IQR-границы |
+
+### Data Leakage Note
+
+В проекте нет готового `target`, поэтому supervised-модель не строилась. Это снижает риск искусственного leakage.
+
+Если в дальнейшем будет добавлена полноценная модель, preprocessing должен обучаться только на train-части данных, а временные данные нужно делить по времени.
+
+### Changelog
+
+| Date | Version | Changes |
+|---|---|---|
+| 2026-05-28 | 0.5 | Добавлен ML/analytics слой недели 13: ноутбук `week13_ml.ipynb`, IQR-анализ температурных аномалий, summary, таблица аномалий и график в `docs/ml/`. |
