@@ -1,0 +1,2 @@
+time,date,hour,temperature,z_score,iqr_lower_bound,iqr_upper_bound,distance_from_iqr_bound
+2026-03-09 23:00:00,2026-03-09,23,-4.1,-2.925304651458044,-3.2624999999999997,1.6375,0.8374999999999999
