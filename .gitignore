@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+.pytest_cache/
 *.pyc
 *.pyo
 *.pyd
@@ -9,6 +10,9 @@ env/
 
 # Локальные файлы
 setup_env.bat
+.env
+.env.*
+!.env.example
 *.log
 .DS_Store
 Thumbs.db
