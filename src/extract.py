@@ -7,6 +7,27 @@ from pathlib import Path
 import os
 
 
+def filter_hourly_by_date(data: dict, target_date: str) -> dict:
+    hourly = data.get("hourly", {})
+    times = hourly.get("time", [])
+    if not times:
+        return data
+
+    keep_idx = [idx for idx, value in enumerate(times) if str(value).startswith(target_date)]
+    if not keep_idx:
+        return data
+
+    filtered = dict(data)
+    filtered_hourly = {}
+    for key, values in hourly.items():
+        if isinstance(values, list) and len(values) == len(times):
+            filtered_hourly[key] = [values[idx] for idx in keep_idx]
+        else:
+            filtered_hourly[key] = values
+    filtered["hourly"] = filtered_hourly
+    return filtered
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", required=True)
@@ -58,12 +79,15 @@ def main():
     if data is None:
         try:
             existing_files = list(Path(folder).glob("raw_*.json"))
+            if not existing_files:
+                existing_files = list(Path(folder).glob("*.json"))
             if existing_files:
                 latest_file = max(existing_files, key=lambda f: f.stat().st_mtime)
-                with open(latest_file, "r", encoding="utf-8") as f_src, open(
-                    filename, "w", encoding="utf-8"
-                ) as f_dst:
-                    f_dst.write(f_src.read())
+                with open(latest_file, "r", encoding="utf-8") as f_src:
+                    fallback_data = json.load(f_src)
+                fallback_data = filter_hourly_by_date(fallback_data, target_date_str)
+                with open(filename, "w", encoding="utf-8") as f_dst:
+                    json.dump(fallback_data, f_dst, ensure_ascii=False, indent=2)
             else:
                 with open(filename, "w", encoding="utf-8") as f_dst:
                     json.dump({}, f_dst)
@@ -72,6 +96,8 @@ def main():
     else:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
+    print(f"raw saved: {filename}")
 
 
 if __name__ == "__main__":
