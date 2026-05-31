@@ -1,664 +1,218 @@
 # end-to-end-project
 
-## Запуск проекта (Windows)
+Учебный end-to-end проект по обработке погодных данных: получение данных из API, нормализация, сборка витрины, проверка качества, загрузка в PostgreSQL, визуализация, Airflow-оркестрация и краткая LLM-сводка.
 
-### Вариант 1. Через Git
-1. git clone https://github.com/egorermolaev635-blip/end-to-end-project.git
-2. cd project
-3. scripts\setup_env.bat
+## Что делает проект
 
-### Вариант 2: ZIP + двойной клик
-1. Скачайте ZIP с GitHub
-2. Распакуйте в любую папку
-3. Двойной клик на scripts\setup_env.bat
+Проект работает с архивными погодными данными Open-Meteo по городу Новосибирск.
 
----
-
-## Проверка (smoke test)
-
-conda run -n data-project python broken_env.py
-
-### Ожидаемый результат:
-
-python: C:\...\envs\data-project\python.exe  
-pandas: 2.1.4
-
----
-
-## Week 2 — API Extract (variant_03)
-
-### Вариант 1
-conda run -n data-project python src/extract.py  
-
-### Вариант 2
-python src/extract.py (если активирована среда)
-
----
-
-### Ожидаемый результат
-
-Variant: 3 - Погода (архив) - Новосибирск  
-
-URL: https://archive-api.open-meteo.com/v1/archive  
-
-Params: {'latitude': 55.0084, 'longitude': 82.9357, 'timezone': 'Asia/Novosibirsk', ...}
-
-Status: 200  
-
-Data: 1234  
-
-Saved: data/raw/variant_03/YYYY-MM-DD_HH-MM-SS.json  
-
----
-
-### Файлы создаются
-
-data/raw/variant_03/YYYY-MM-DD_HH-MM-SS.json  ← raw API ответ  
-docs/Data_Contract.md                         ← документация API  
-
----
-
-### Требования
-
-- Windows 10/11  
-- Anaconda/Miniconda  
-
----
-
-## Week 3 — Data Normalization (Pandas)
-
-### Что сделано
-
-- raw JSON преобразован в DataFrame  
-- определено зерно: 1 строка = 1 час наблюдения  
-- выполнена базовая очистка данных  
-
----
-
-### Очистка
-
-- `time` → datetime  
-- `temperature` → float  
-- проверка и удаление пропусков  
-- добавлены признаки: `date`, `hour`  
-
----
-
-### Результат
-
-Данные сохранены в:
-data/normalized/variant_03/.csv
-
-Параметр: `index=False`
-
----
-
-### Data Contract
-
-Добавлена схема normalized-слоя:
-
-- поля  
-- типы данных  
-- nullable  
-- описание колонок  
-
----
-
-### Итог
-
-Собран pipeline:
-raw JSON → DataFrame → очистка → CSV
-
----
-
-## Week 4 — Mart (Группировки и агрегаты)
-
-### Что сделано
-
-- normalized-данные агрегированы в дневную витрину  
-- добавлен `city_id` из config  
-- создан справочник `reference/cities.csv`  
-- выполнен join по `city_id`  
-- проверено отсутствие many-to-many  
-- рассчитаны KPI  
-
----
-
-### Гранулярность
-
-Одна строка = один день по одному городу  
-
----
-
-### KPI витрины
-
-- средняя температура за день  
-- минимальная температура  
-- максимальная температура  
-- диапазон температуры  
-
----
-
-### Результат
-
-Витрина сохраняется в:
-data/mart/variant_03/mart_daily_.csv
-
----
-
-### Итог
-
-Собран полный pipeline:
-raw JSON → normalized CSV → mart CSV
-
----
-
-## Week 5 — PostgreSQL (Загрузка и SQL-проверки)
-
-### Что сделано
-1.mart-данные загружены в PostgreSQL
-2.реализован скрипт загрузки load.py
-3.использована транзакция через engine.begin()
-4.обеспечена идемпотентность загрузки (if_exists="replace")
-5.выполнены SQL-проверки качества данных
-
-### Подключение
-- host: localhost
-- port: 5432
-- database: analytics_db
-- user: analytics
-- password: analytics_pass
-
-### Загрузка
-Запуск:
-
-```bash
-python src/load.py
-```
-
-### Что происходит
-- чтение mart CSV
-- проверка структуры DataFrame (shape, columns, dtypes)
-- подключение к базе
-- загрузка в таблицу mart_weather
-
-### Идемпотентность
-Повторный запуск не создаёт дубли
-таблица пересоздаётся при каждой загрузке
-
-### SQL-проверки
-Проверки описаны в: docs/sql_checks.md
-
-### Выполнены проверки:
-таблица не пустая (COUNT)
-диапазон дат (MIN/MAX)
-NULL в ключевых колонках
-дубли по (date, city_id)
-проверка температурных метрик
-
-### Результат
-Данные загружены в PostgreSQL
-таблица: mart_weather
-SQL-запросы успешно выполняются
-данные прошли базовые проверки качества
-
-## Week 6 — ETL Pipeline (Слои, state, incremental)
-
-### Что сделано
-
-- объединены все этапы в единый pipeline (pipeline.py)  
-- реализована единая команда запуска  
-- добавлены режимы:
-  - full
-  - incremental  
-- устранён хардкод путей во всех слоях  
-- реализовано автоматическое связывание слоёв (raw → normalized → mart)  
-- добавлен state.json для хранения состояния пайплайна  
-- реализован watermark (по максимальной дате)  
-- обеспечена идемпотентность пайплайна  
-
----
-
-### Запуск pipeline
-
-Full режим:
-python src/pipeline.py --mode full
-
-Incremental режим:
-python src/pipeline.py --mode incremental
-
----
-
-### Что происходит
-
-Pipeline выполняет шаги:
-
-1. Extract
-   - получение данных из API  
-   - сохранение в data/raw/variant_03/
-
-2. Transform (notebook)
-   - берётся последний raw-файл  
-   - выполняется очистка и преобразование  
-   - сохраняется новый файл в data/normalized/variant_03/
-
-3. Mart
-   - берётся последний normalized  
-   - строится дневная витрина  
-   - сохраняется в data/mart/variant_03/
-
-4. Load
-   - берётся последний mart  
-   - загрузка в PostgreSQL  
-
----
-
-### State пайплайна
-
-Файл:
-data/state.json
-
-Содержит:
-- variant
-- source_type
-- last_successful_run_at
-- last_mode
-- watermark
-- last_raw_path
-
----
-
-### Watermark
-
-- используется поле: date  
-- определяется как максимальная дата из mart  
-- обновляется только после успешного завершения pipeline  
-
-Пример:
-watermark = 2026-04-14
-
----
-
-### Business key
-
-Одна строка витрины = один день по одному городу  
-
-Business key:
-date + city_id
-
----
-
-### Идемпотентность
-
-- повторный запуск pipeline не создаёт дубликатов  
-- загрузка в PostgreSQL выполняется через replace  
-- результат одинаков при повторных запусках на тех же данных  
-
----
-
-### Режимы работы
-
-Full:
-- пересоздаются все слои  
-- витрина полностью пересобирается  
-- таблица в БД заменяется  
-
-Incremental:
-- используется state.json  
-- сохраняется watermark  
-- pipeline запускается безопасно повторно  
-- дубли не накапливаются  
-
----
-
-### Итог
-
-Собран полноценный ETL pipeline:
-
-API → raw → normalized → mart → PostgreSQL
-
-Свойства:
-- единая точка входа  
-- повторяемость  
-- идемпотентность  
-- поддержка incremental  
-- хранение состояния (state + watermark)
-
-## Week 7 — Data Visualization (matplotlib + storytelling)
-
-### Что сделано
-
-- построены визуализации на основе mart-данных  
-- используется самый свежий mart CSV из `data/mart/variant_03/`  
-- реализован анализ в Jupyter Notebook  
-- применены базовые типы графиков:
-  - временной ряд (line plot)  
-  - распределение (histogram)  
-  - ranking (bar chart)  
-- обеспечена корректная работа с датой (`datetime + сортировка`)  
-- добавлены текстовые выводы по графикам  
-
----
-
-### Ноутбук
-
-Файл:
-notebooks/week7_viz.ipynb
-
----
-
-### Загрузка данных
-
-- автоматически выбирается последний файл из:
-data/mart/variant_03/*.csv
-
----
-
-### Построенные графики
-
-1. Временной ряд  
-   - динамика средней температуры по датам  
-
-2. Распределение  
-   - распределение значений температуры  
-
-3. Ranking  
-   - агрегирование по диапазонам temperature_range  
-
----
-
-### Оформление
-
-- заголовки графиков  
-- подписи осей  
-- единицы измерения (°C)  
-- корректная временная ось  
-
----
-
-### Выводы
-
-- данные проанализированы через визуализацию  
-- выявлены колебания температуры во времени  
-- оценено распределение значений  
-- показана вариативность через агрегирование  
-
----
-
-### Результат
-
-- построены 3 графика  
-- выполнен базовый визуальный анализ  
-- ноутбук воспроизводим  
-- данные корректно интерпретированы  
-
----
-## Week 8 — Data Quality (DQ + тесты)
-
-### Что сделано
-
-- реализованы проверки качества данных для слоя mart  
-- написан отдельный скрипт `dq.py`  
-- реализован автоматический отчёт в JSON  
-- добавлены unit-тесты через pytest  
-- проверена корректность всех функций  
-
----
-
-### Проверки DQ
-
-Реализованы следующие проверки:
-
-1. table_non_empty  
-   - проверка, что таблица не пустая  
-
-2. not_null_critical_fields  
-   - проверка NULL в полях:  
-     date, city_id, city_name, country_code  
-
-3. unique_business_key  
-   - проверка уникальности ключа:  
-     date + city_id  
-
-4. temperature_range  
-   - проверка диапазона температур:  
-     от -90 до +60  
-
-5. temperature_min_max_logic  
-   - проверка условия:  
-     temperature_min ≤ temperature_max  
-
-6. country_code_enum  
-   - проверка допустимых значений country_code  
-
----
-
-### Запуск DQ
-
-python src/dq.py
-
----
-
-### Что происходит
-
-- берётся последний mart CSV  
-- выполняются все проверки  
-- формируется отчёт  
-
----
-
-### Результат
-
-Отчёт сохраняется в:
-
-data/dq_report.json  
-
-Содержит:
-- источник данных  
-- количество строк  
-- список проверок  
-- статус (PASS / FAIL / WARNING)  
-
----
-
-### Тесты
-
-Файл:
-tests/test_dq.py  
-
-Проверяется:
-- корректность работы всех функций  
-- обработка ошибок (NULL, дубли, диапазоны)  
-
----
-
-### Запуск тестов
-
-python3 -m pytest tests  
-
----
-
-### Итог
-
-- реализован контроль качества данных  
-- проверки применяются к реальным данным  
-- логика проверок покрыта тестами  
-- результаты сохраняются в отчёт  
-
-DQ слой добавлен в pipeline и завершает цепочку обработки данных.
-
-### Итог
-
-Добавлен этап анализа данных через визуализацию:
-
-mart → matplotlib → выводы
-
-## Week 9 — Data Governance (Data Contract + Data Dictionary)
-
-### Что сделано
-
-- оформлен полный Data Contract (`docs/Data_Contract.md`)
-- добавлены:
-  - версия контракта (version)
-  - changelog изменений
-  - единицы измерения (units)
-  - часовой пояс (timezone)
-  - правила именования (naming conventions)
-  - ограничения (constraints)
-  - гранулярность данных
-- создан словарь данных (`docs/data_dictionary.md`)
-- согласована логика данных между кодом и документацией
-
----
-
-### Data Contract
-
-Файл:
-docs/Data_Contract.md
-
-Содержит:
-
-- описание источника данных (Open-Meteo API)
-- схемы слоёв:
-  - normalized
-  - mart
-- типы данных и nullable
-- единицы измерения (°C, degrees)
-- часовой пояс: `Asia/Novosibirsk`
-- гранулярность:
-  - normalized → 1 строка = 1 час
-  - mart → 1 строка = 1 день × 1 город
-- ключи и ограничения:
-  - `date + city_id`
-- правила именования колонок
-- changelog версий
-
----
-
-### Data Dictionary
-
-Файл:
-docs/data_dictionary.md
-
-Содержит:
-
-- человеко-ориентированное описание колонок mart
-- бизнес-смысл каждой метрики
-- единицы измерения
-- пояснения к интерпретации данных
-
----
-
-### Основная идея
-
-Данные не просто существуют, а:
-
-- имеют зафиксированный смысл  
-- имеют единые единицы измерения  
-- имеют согласованную структуру  
-- не ломают downstream при изменениях  
-
----
-
-### Итог
-
-Pipeline приведён к уровню Data Governance:
-
-API → raw → normalized → mart → PostgreSQL → DQ → visualization → **contract + dictionary**
-
-Обеспечено:
-
-- понимание данных  
-- воспроизводимость  
-- согласованность  
-- прозрачность изменений  
-
-## Неделя 10 — Docker: PostgreSQL, Metabase и BI-дашборд
-
-**Статус:** 🟢 Готово
-
-### Цель недели
-
-На неделе 10 был собран воспроизводимый локальный стенд для работы с витриной данных.
-
-В рамках задания были выполнены следующие действия:
-
-- PostgreSQL поднимается через `docker compose`;
-- данные PostgreSQL сохраняются в отдельном volume;
-- Metabase поднимается как BI-инструмент;
-- Metabase подключается к PostgreSQL внутри Docker Compose-сети;
-- дашборд строится по таблице `mart_weather` из PostgreSQL, а не по CSV-файлу.
-
----
-
-### Состав Docker Compose-стенда
-
-В проект добавлен файл:
+Основная цепочка:
 
 ```text
-docker-compose.yml
+Extract -> Transform -> Mart -> DQ -> Load -> LLM Summary
 ```
 
-В нём описаны два сервиса:
+Слои данных:
 
-| Сервис | Назначение |
-|---|---|
-| `postgres` | база данных PostgreSQL для хранения витрины |
-| `metabase` | BI-инструмент для построения дашборда |
+```text
+data/raw/variant_03/          raw JSON из API
+data/normalized/variant_03/   очищенные CSV
+data/mart/variant_03/         дневная витрина
+docs/dq_report.json           отчет качества данных
+docs/llm/summary.md           краткая аналитическая сводка
+```
 
-Также используются два volume:
+## Требования
 
-| Volume | Назначение |
-|---|---|
-| `pgdata` | хранит данные PostgreSQL |
-| `metabase_data` | хранит настройки Metabase и созданные дашборды |
+- Windows 10/11
+- Anaconda или Miniconda
+- Docker Desktop, если нужен PostgreSQL, Metabase и Airflow
+- Python 3.11
 
----
+## Быстрый запуск на Windows
 
-### Запуск сервисов
+### Вариант 1. Через Git
 
-Для запуска PostgreSQL и Metabase используется команда:
+```bash
+git clone https://github.com/egorermolaev635-blip/end-to-end-project.git
+cd end-to-end-project
+scripts\setup_env.bat
+```
+
+### Вариант 2. Через ZIP
+
+1. Скачайте ZIP с GitHub.
+2. Распакуйте проект в любую папку.
+3. Откройте папку проекта.
+4. Запустите:
+
+```bash
+scripts\setup_env.bat
+```
+
+Скрипт создает conda-окружение:
+
+```text
+ds_project
+```
+
+## Проверка окружения
+
+```bash
+conda run -n ds_project python broken_env.py
+```
+
+Ожидаемый результат:
+
+```text
+python: C:\...\envs\ds_project\python.exe
+pandas: ...
+```
+
+## Основной запуск pipeline
+
+Локальный запуск без загрузки в PostgreSQL:
+
+```bash
+conda run -n ds_project python src/pipeline.py --mode full --date 2026-03-08 --skip-load
+```
+
+Запуск с загрузкой в PostgreSQL:
+
+```bash
+conda run -n ds_project python src/pipeline.py --mode full --date 2026-03-08
+```
+
+Параметры:
+
+- `--mode full` — полный запуск;
+- `--mode incremental` — инкрементальный режим;
+- `--date YYYY-MM-DD` — дата периода;
+- `--skip-load` — пропустить загрузку в PostgreSQL.
+
+## Отдельные шаги
+
+### Extract
+
+Получает данные из Open-Meteo Archive API и сохраняет raw JSON.
+
+```bash
+conda run -n ds_project python src/extract.py --date 2026-03-08
+```
+
+Результат:
+
+```text
+data/raw/variant_03/raw_2026-03-08.json
+```
+
+### Transform
+
+Читает raw JSON, очищает данные и создает normalized CSV. После этого запускается сборка mart.
+
+```bash
+conda run -n ds_project python src/transform.py --date 2026-03-08
+```
+
+Результаты:
+
+```text
+data/normalized/variant_03/normalized_2026-03-08.csv
+data/mart/variant_03/mart_daily_2026-03-08.csv
+```
+
+### Mart
+
+Собирает дневную витрину по температуре.
+
+```bash
+conda run -n ds_project python src/showcase_mart.py --date 2026-03-08
+```
+
+Гранулярность витрины:
+
+```text
+1 строка = 1 день по 1 городу
+```
+
+Основные поля:
+
+- `date`
+- `city_id`
+- `city_name`
+- `country_code`
+- `temperature_mean`
+- `temperature_min`
+- `temperature_max`
+- `temperature_range`
+
+### DQ
+
+Проверяет качество mart-слоя.
+
+```bash
+conda run -n ds_project python src/dq.py --date 2026-03-08
+```
+
+Проверки:
+
+- таблица не пустая;
+- критичные поля не содержат NULL;
+- ключ `date + city_id` уникален;
+- температуры находятся в реалистичном диапазоне;
+- `temperature_min <= temperature_max`;
+- `country_code` входит в допустимый список.
+
+Результат:
+
+```text
+docs/dq_report.json
+```
+
+### Load
+
+Загружает mart-витрину в PostgreSQL.
+
+```bash
+conda run -n ds_project python src/load.py --date 2026-03-08
+```
+
+Таблица:
+
+```text
+mart_weather
+```
+
+Загрузка идемпотентная: перед вставкой удаляются строки за выбранную дату, затем данные вставляются заново.
+
+### SQL-проверки
+
+```bash
+conda run -n ds_project python src/check_sql.py
+```
+
+Скрипт проверяет:
+
+- количество строк;
+- минимальную и максимальную дату;
+- дубли по `date + city_id`.
+
+## PostgreSQL и Metabase
+
+Запуск сервисов:
 
 ```bash
 docker compose up -d
 ```
 
-Проверка запущенных контейнеров:
-
-```bash
-docker compose ps
-```
-
-После запуска сервисов доступны:
+После запуска доступны:
 
 ```text
 PostgreSQL: localhost:5432
 Metabase:   http://localhost:3000
 ```
 
----
-
-### Загрузка витрины в PostgreSQL
-
-Витрина загружается в PostgreSQL через существующий скрипт:
-
-```bash
-python src/load.py
-```
-
-Скрипт автоматически берёт последний CSV-файл из папки:
-
-```text
-data/mart/variant_03/
-```
-
-и загружает его в таблицу:
-
-```text
-mart_weather
-```
-
-Используемое подключение:
+Подключение PostgreSQL:
 
 ```text
 database: analytics_db
@@ -668,32 +222,9 @@ host: localhost
 port: 5432
 ```
 
----
-
-### Проверка таблицы в PostgreSQL
-
-Для ручной проверки можно зайти в PostgreSQL:
-
-```bash
-docker compose exec postgres psql -U analytics -d analytics_db
-```
-
-Проверочные SQL-команды:
-
-```sql
-\dt
-SELECT COUNT(*) FROM mart_weather;
-SELECT * FROM mart_weather LIMIT 5;
-```
-
----
-
-### Подключение Metabase к PostgreSQL
-
-В Metabase используется подключение:
+Для подключения Metabase к PostgreSQL внутри Docker Compose используйте:
 
 ```text
-Database type: PostgreSQL
 Host: postgres
 Port: 5432
 Database name: analytics_db
@@ -701,184 +232,17 @@ Username: analytics
 Password: analytics_pass
 ```
 
-Важно: в Metabase используется `Host = postgres`, потому что Metabase работает внутри Docker Compose-сети и обращается к PostgreSQL по имени сервиса.
+## Airflow
 
-При этом `src/load.py` подключается к `localhost:5432`, потому что запускается с локальной машины, а порт PostgreSQL проброшен наружу.
+Airflow запускает ETL-процесс по расписанию.
 
----
-
-### BI-дашборд
-
-В Metabase создан дашборд:
-
-```text
-Weather Analytics Dashboard
-```
-
-Дашборд построен по таблице:
-
-```text
-mart_weather
-```
-
-В него входят три визуализации:
-
-| № | Название | Тип | Поля |
-|---|---|---|---|
-| 1 | Средняя температура по дням | line chart | `date`, `temperature_mean` |
-| 2 | Максимальная температура по дням | bar chart | `date`, `temperature_max` |
-| 3 | Сводка температурной витрины | table | `date`, `city_name`, `temperature_mean`, `temperature_min`, `temperature_max`, `temperature_range` |
-
-Так как текущая mart-витрина содержит небольшой набор данных, третья визуализация сделана в виде таблицы. Это позволяет явно показать итоговую витрину, из которой строятся графики.
-
----
-
-### BI-артефакты
-
-Скриншоты BI-дашборда сохранены в папке:
-
-```text
-docs/bi/
-```
-
-Файлы:
-
-```text
-docs/bi/dashboard_overview.png
-docs/bi/chart_timeseries.png
-docs/bi/chart_summary.png
-```
-
----
-
-### Разница между Docker-командами
-
-`docker compose stop` останавливает контейнеры, но не удаляет их.
-
-`docker compose down` удаляет контейнеры, но сохраняет volumes.
-
-`docker compose down -v` удаляет контейнеры и volumes. В этом случае данные PostgreSQL и настройки Metabase будут удалены.
-
----
-
-## Неделя 11 — Airflow: оркестрация ETL-процесса
-
-**Статус:** 🟢 Готово
-
-### Цель недели
-
-На неделе 11 был добавлен Apache Airflow для автоматического запуска ETL-процесса.
-
-Ранее этапы проекта запускались отдельными командами:
-
-```text
-extract → transform → load → dq
-```
-
-Теперь эти этапы объединены в один Airflow DAG.  
-Это позволяет запускать весь pipeline через веб-интерфейс, видеть историю запусков, отслеживать статусы задач и проверять логи выполнения.
-
----
-
-### Что сделано
-
-- добавлен запуск Airflow через Docker Compose;
-- создан DAG `etl_variant_03`;
-- настроена цепочка задач `extract → transform → load → dq`;
-- добавлено расписание запуска;
-- настроены зависимости между задачами;
-- обновлены ETL-скрипты для корректной работы внутри Airflow;
-- добавлены логи для проверки выполнения каждого этапа;
-- сделаны скриншоты успешного запуска DAG.
-
----
-
-### Основной DAG
-
-Файл DAG находится по пути:
-
-```text
-airflow/dags/etl_variant_03.py
-```
-
-Название DAG в интерфейсе Airflow:
-
-```text
-etl_variant_03
-```
-
-Цепочка задач:
-
-```text
-extract → transform → load → dq
-```
-
----
-
-### Задачи DAG
-
-| Task | Назначение |
-|---|---|
-| `extract` | получение raw JSON |
-| `transform` | нормализация данных и построение mart |
-| `load` | загрузка mart в PostgreSQL |
-| `dq` | проверка качества данных |
-
----
-
-### Расписание
-
-Для учебной проверки используется расписание:
-
-```text
-*/5 * * * *
-```
-
-DAG может запускаться автоматически каждые 5 минут.
-
-Также его можно запустить вручную через кнопку **Trigger DAG** в интерфейсе Airflow.
-
----
-
-### Настройки DAG
-
-В DAG используются следующие настройки:
-
-```text
-start_date = 2026-03-01
-catchup = False
-schedule = */5 * * * *
-```
-
-Параметр `catchup=False` нужен, чтобы Airflow не запускал все пропущенные интервалы с момента `start_date`.
-
----
-
-### Запуск Airflow
-
-Сначала запускается основной Docker Compose с PostgreSQL:
-
-```bash
-docker compose up -d
-```
-
-После этого запускается Airflow:
+Запуск:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
 ```
 
-Проверка контейнеров:
-
-```bash
-docker compose ps
-```
-
----
-
-### Airflow UI
-
-После запуска Airflow доступен в браузере:
+Airflow UI:
 
 ```text
 http://localhost:8080
@@ -890,400 +254,149 @@ http://localhost:8080
 airflow / airflow
 ```
 
-В интерфейсе Airflow нужно:
-
-1. открыть список DAGs;
-2. включить DAG `etl_variant_03`;
-3. запустить DAG вручную через Trigger DAG;
-4. дождаться статуса `success`;
-5. проверить Graph View и логи задач.
-
----
-
-### Подключение к PostgreSQL
-
-При локальном запуске `src/load.py` использует подключение:
+DAG:
 
 ```text
-localhost:5432
+etl_variant_03
 ```
 
-Но внутри контейнера Airflow `localhost` указывает на сам контейнер Airflow.
-
-Поэтому для DAG используется подключение к PostgreSQL по имени Docker Compose-сервиса:
+Цепочка задач:
 
 ```text
-postgres:5432
+extract -> transform -> dq -> load
 ```
 
-Строка подключения внутри Airflow:
+DQ стоит перед загрузкой в базу. Если проверки качества падают, данные в PostgreSQL не загружаются.
+
+## Визуализация
+
+Ноутбук:
 
 ```text
-postgresql+psycopg2://analytics:analytics_pass@postgres:5432/analytics_db
+notebooks/week7_viz.ipynb
 ```
 
----
-
-### Изменения в ETL-скриптах
-
-Для корректной работы Airflow были обновлены основные скрипты проекта.
-
-В `src/extract.py`:
-
-- исправлен запрос к Open-Meteo Archive API;
-- вместо `past_days` используются `start_date` и `end_date`;
-- добавлен fallback на последний локальный raw-файл;
-- добавлен вывод логов для Airflow.
-
-В `src/transform.py`:
-
-- добавлен отдельный transform-этап для Airflow;
-- выполняется notebook `notebooks/week3_eda.ipynb`;
-- после normalized-слоя запускается построение mart;
-- в лог выводится количество строк.
-
-В `src/load.py`:
-
-- добавлена поддержка переменной окружения `DB_URL`;
-- загрузка выполняется в таблицу `mart_weather`;
-- добавлен вывод количества загруженных строк;
-- сохранена идемпотентность через `if_exists="replace"`.
-
-В `src/dq.py`:
-
-- выполняются проверки качества mart-слоя;
-- в лог выводится итоговый статус проверок;
-- при наличии FAIL задача завершается с ошибкой.
-
----
-
-### Ожидаемые строки в логах
-
-В логах Airflow должны быть видны основные этапы выполнения:
+Построенные графики:
 
 ```text
-config: variant_03.yml
-raw saved: data/raw/variant_03/....json
-normalized rows: ...
-mart rows: ...
-loaded rows to postgres: ...
-dq checks: PASS=6 WARNING=0 FAIL=0
+notebooks/week7_timeseries.png
+notebooks/week7_distribution.png
+notebooks/week7_ranking.png
 ```
 
-Эти строки подтверждают, что DAG не просто запустился, а реально выполнил весь ETL-процесс.
+## ML-блок
 
----
-
-### Скриншоты
-
-Скриншоты для подтверждения выполнения сохранены в папке:
-
-```text
-docs/airflow/
-```
-
-Файлы:
-
-```text
-docs/airflow/successful_run.png
-docs/airflow/graph_view.png
-docs/airflow/task_log.png
-```
-
----
-
-### Что показывают скриншоты
-
-| Файл | Что показывает |
-|---|---|
-| `successful_run.png` | успешные DAG Run со статусом `success` |
-| `graph_view.png` | цепочку задач `extract → transform → load → dq` |
-| `task_log.png` | лог задачи `dq` с итогом проверок |
-
----
-
-### Результат
-
-DAG `etl_variant_03` успешно выполняет полный ETL-процесс:
-
-```text
-raw → normalized → mart → PostgreSQL → DQ
-```
-
-Все задачи выполняются последовательно:
-
-```text
-extract → transform → load → dq
-```
-
-После запуска DAG завершается со статусом `success`.
-
----
-
-### Итог
-
-Pipeline расширен до оркестрации через Apache Airflow.
-
-Теперь проект можно запускать не только отдельными Python-скриптами, но и через Airflow DAG.
-
-Добавлены:
-
-- автоматический запуск по расписанию;
-- ручной запуск через Airflow UI;
-- зависимости между задачами;
-- история запусков;
-- логи выполнения;
-- скриншоты успешного запуска.
-
-Airflow-часть проекта работает корректно и подтверждена результатами выполнения DAG.
-
-## Неделя 12 — Airflow: оркестрация инкрементального ETL-процесса
-
-**Статус:** 🟢 Готово
-
-### Цель недели
-Пайплайн переведен на полноценную оркестрацию через Apache Airflow с поддержкой строгой инкрементальности, backfill и полной изоляции данных.
-
-### Схема и структура задач
-Порядок шагов изменен для создания шлюза безопасности (Quality Gate): проверка качества данных (DQ) выполняется строго до загрузки в базу данных. При наличии статуса FAIL пайплайн падает, защищая целевую таблицу от загрязнения.
-
-Цепочка задач: extract → transform → dq → load
-
-- **extract**: Получение raw JSON за логический день {{ ds }}
-- **transform**: Выполнение .ipynb ноутбука и сборка дневного CSV-марта за дату периода
-- **dq**: Валидация сформированного марта текущего периода (Quality Gate)
-- **load**: Атомарная загрузка данных в БД (Delete period + Insert)
-
----
-
-### Настройки и запуск
-- Расписание: 0 2 * * * (ежедневно в 02:00 UTC)
-- Настройки: start_date = 2026-03-01, catchup = False
-- Команда запуска основного стенда: docker compose up -d
-- Команда запуска Airflow: docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
-- Airflow UI: http://localhost:8080 (логин/пароль: airflow / airflow)
-- Строка подключения внутри Airflow: postgresql+psycopg2://analytics:analytics_pass@postgres:5432/analytics_db
-
----
-
-### Реализация инкрементальности и идемпотентности
-1. **Изоляция файлов**: Все скрипты принимают аргумент --date {ds}. Ноутбук week3_eda.ipynb читает из окружения TARGET_DATE. Исключены datetime.now() и выбор «последнего» файла — каждый процесс обрабатывает строго свой день (raw_YYYY-MM-DD.json, mart_daily_YYYY-MM-DD.csv).
-2. **Идемпотентность загрузки**: В src/load.py вместо replace реализован паттерн Delete period + Insert в единой транзакции engine.begin(). При перезапусках или backfill старые строки за этот день удаляются, исключая дубликаты.
-
----
-
-### Скриншоты и логи
-Логи подтверждают обработку конкретных дат периода, количество строк и успешный проход DQ. Скриншоты выполнения (successful_run.png, graph_view.png, task_log.png) сохранены в папке docs/airflow/.
-
-## Неделя 13 — ML-блок: простая аналитика аномалий
-
-**Статус:** 🟢 Готово
-
-### Цель недели
-
-Добавлен небольшой ML/аналитический слой без усложнения модели. Так как в погодных данных проекта нет готовой целевой переменной `target`, выбран вариант B — поиск аномалий.
-
-Supervised-модель для этих данных была бы искусственной, поэтому вместо неё использована прозрачная эвристика по температурному ряду.
-
-### Что сделано
-
-- создан ноутбук `notebooks/week13_ml.ipynb`
-- разобрана проблема leakage из части 0
-- выбран сценарий B — аномалии
-- использован normalized-слой `data/normalized/variant_03/`
-- выбрана метрика `temperature`
-- применён IQR-метод для поиска выбросов
-- сохранены артефакты в `docs/ml/`
-- обновлён `requirements.txt`, добавлен `scikit-learn`
-
-### Метод
-
-Используется IQR:
-
-```text
-IQR = Q3 - Q1
-lower_bound = Q1 - 1.5 * IQR
-upper_bound = Q3 + 1.5 * IQR
-```
-
-Точка считается аномалией, если температура выходит за эти границы.
-
-### Результат
-
-По данным за 48 часов найдена 1 аномалия:
-
-```text
-2026-03-09 23:00:00
-temperature = -4.1 C
-```
-
-Это похоже на резкое похолодание в конце периода. По текущим данным значение не выглядит ошибкой формата: дата корректная, температура числовая, пропусков нет.
-
-### Артефакты
+Ноутбук:
 
 ```text
 notebooks/week13_ml.ipynb
-docs/ml/week13_summary.md
-docs/ml/anomalies_top.csv
-docs/ml/metrics.png
 ```
 
-### Вывод
+В проекте используется простой поиск аномалий по температурному ряду через IQR-метод. Это выбранный учебный сценарий, потому что в данных нет готовой целевой переменной для supervised-модели.
 
-Метод полезен как простой мониторинг подозрительных точек в погодном ряду.
-
-Для более надёжной аналитики нужно больше исторических данных и сравнение с соседними днями или климатической нормой.
-## Неделя 14 — LLM в работе аналитика
-
-**Статус:** 🟢 Готово
-
-### Цель недели
-
-На этой неделе проект был собран в финальную версию мини-продукта.
-
-Главная идея: LLM не используется как источник чисел.  
-Все метрики считаются кодом из mart-витрины, а LLM получает только готовые агрегаты и помогает сформулировать краткую аналитическую сводку.
-
----
-
-### Финальный запуск проекта
-
-Минимальный локальный запуск без PostgreSQL:
-
-```bash
-python src/pipeline.py --mode full --date 2026-03-08 --skip-load
-python src/llm_summary.py --date 2026-03-08
-```
-
-Полный запуск с PostgreSQL:
-
-```bash
-docker compose up -d
-python src/pipeline.py --mode full --date 2026-03-08
-python src/llm_summary.py --date 2026-03-08
-```
-
-Если команда `python` не найдена, можно использовать `python3`.
-
----
-
-### Что происходит при запуске
-
-Pipeline выполняет шаги:
-
-1. Extract — получает данные из API и сохраняет raw JSON.
-2. Transform — читает raw JSON, очищает данные и сохраняет normalized CSV.
-3. Mart — собирает дневную витрину и считает температурные метрики.
-4. DQ — проверяет качество mart-витрины и сохраняет отчет.
-5. Load — загружает mart в PostgreSQL. При `--skip-load` этот шаг пропускается.
-6. LLM Summary — берет только агрегаты из mart и формирует markdown-сводку.
-
----
-
-### LLM-шаг
-
-Добавлен отдельный скрипт:
+Артефакты:
 
 ```text
-src/llm_summary.py
+docs/ml/week13_summary.md
+docs/ml/metrics.png
+docs/ml/anomalies_top.csv
 ```
 
-Он выполняется после основного pipeline и не влияет на расчеты.
+## LLM Summary
 
 Скрипт:
 
-- читает mart-витрину;
-- считает метрики кодом;
-- формирует короткий контекст для LLM;
-- запрещает LLM придумывать новые числа;
-- сохраняет результат в markdown;
-- добавляет запись в LLM log.
-
----
-
-### Правило анти-галлюцинации
-
-LLM нельзя просить считать:
-
-- максимум;
-- минимум;
-- среднее;
-- количество строк;
-- top-N;
-- корреляции;
-- любые ключевые метрики проекта.
-
-Все эти числа считает код.
-
-LLM можно использовать для:
-
-- краткой интерпретации уже рассчитанных метрик;
-- формулировки выводов;
-- описания рисков;
-- предложения следующих проверок;
-- подготовки текстовой сводки.
-
----
-
-### Контекст для LLM
-
-В LLM передается не raw-таблица, а только короткая выжимка:
-
-```text
-Dataset identity
-Schema hints
-Computed metrics
-Quality status
-Constraints
-```
-
-Raw JSON, большие таблицы и приватные данные в LLM не отправляются.
-
----
-
-### Артефакты недели 14
-
 ```text
 src/llm_summary.py
-docs/llm/summary.md
+```
+
+Запуск:
+
+```bash
+conda run -n ds_project python src/llm_summary.py --date 2026-03-08
+```
+
+Результаты:
+
+```text
 docs/llm/context.md
 docs/llm/prompt.md
+docs/llm/summary.md
 docs/LLM_Usage_Log.md
-docs/dq_report.json
-docs/bi/
-.env.example
-.gitignore
 ```
 
----
+LLM не считает метрики. Все числа считаются кодом из mart-витрины, а LLM получает только готовый агрегированный контекст и помогает сформулировать краткую интерпретацию.
 
-### Безопасность
+Если переменная `OPENAI_API_KEY` не задана, используется локальный безопасный шаблон.
 
-API-ключ не хранится в коде и не коммитится в GitHub.
-
-Для ключа используется переменная окружения:
+## Основные файлы проекта
 
 ```text
-OPENAI_API_KEY
+src/extract.py          получение raw-данных
+src/transform.py        нормализация данных
+src/showcase_mart.py    сборка mart-витрины
+src/dq.py               проверки качества данных
+src/load.py             загрузка в PostgreSQL
+src/check_sql.py        SQL-проверки
+src/pipeline.py         единая точка запуска pipeline
+src/llm_summary.py      LLM-сводка
+airflow/dags/etl_variant_03.py
+docker-compose.yml
+docker-compose.airflow.yml
 ```
 
-В репозиторий добавлен файл:
+## Как проверить проект перед сдачей
+
+1. Проверить окружение:
+
+```bash
+conda run -n ds_project python broken_env.py
+```
+
+2. Запустить тесты:
+
+```bash
+conda run -n ds_project python -m pytest tests
+```
+
+3. Запустить pipeline без базы:
+
+```bash
+conda run -n ds_project python src/pipeline.py --mode full --date 2026-03-08 --skip-load
+```
+
+4. Если нужен PostgreSQL, поднять Docker:
+
+```bash
+docker compose up -d
+```
+
+5. Запустить pipeline с загрузкой:
+
+```bash
+conda run -n ds_project python src/pipeline.py --mode full --date 2026-03-08
+```
+
+6. Проверить SQL:
+
+```bash
+conda run -n ds_project python src/check_sql.py
+```
+
+## Итог
+
+Проект показывает полный путь данных:
 
 ```text
-.env.example
+API -> raw -> normalized -> mart -> DQ -> PostgreSQL -> BI / LLM summary
 ```
 
-А локальный `.env` добавлен в `.gitignore`.
+Главные свойства проекта:
 
----
-
-### Итог
-
-Проект собран как мини-продукт:
-
-```text
-API → raw → normalized → mart → DQ → PostgreSQL/BI → LLM summary
-```
-
-LLM используется только как слой интерпретации.  
-Все числа в отчете проверяемы, потому что они берутся из mart-витрины и DQ-отчета.
+- воспроизводимый запуск;
+- разделение на слои данных;
+- проверки качества;
+- идемпотентная загрузка;
+- Docker-инфраструктура;
+- Airflow-оркестрация;
+- понятные артефакты для проверки.
